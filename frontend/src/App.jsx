@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import "./index.css";
+import api from "./api/axios";
 
 const sampleProducts = [
   {
@@ -22,13 +24,41 @@ const sampleProducts = [
 ];
 
 function App() {
+  const [healthStatus, setHealthStatus] = useState({
+    loading: true,
+    data: null,
+    error: "",
+  });
+
+  useEffect(() => {
+    async function checkBackendHealth() {
+      try {
+        const response = await api.get("/api/health");
+
+        setHealthStatus({
+          loading: false,
+          data: response.data,
+          error: "",
+        });
+      } catch {
+        setHealthStatus({
+          loading: false,
+          data: null,
+          error: "Backend is not reachable",
+        });
+      }
+    }
+
+    checkBackendHealth();
+  }, []);
+
   return (
     <main className="min-h-screen bg-[#FAF7F0] px-4 py-6 text-[#1F2933] sm:px-6 lg:px-8">
       <section className="mx-auto flex min-h-[calc(100vh-48px)] w-full max-w-5xl items-center">
         <div className="grid w-full gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div className="rounded-3xl border border-[#E5E0D8] bg-white p-6 sm:p-8">
             <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#2F6F4E]">
-              Kaha
+              Kaha MVP
             </p>
 
             <h1 className="mt-4 text-4xl font-bold leading-tight text-[#1F2933] sm:text-5xl lg:text-6xl">
@@ -39,6 +69,30 @@ function App() {
               Kaha helps store owners record sales, monitor stock, track profit,
               and prepare clean data for future business insights.
             </p>
+
+            <div className="mt-6 rounded-2xl border border-[#E5E0D8] bg-[#FAF7F0] p-4">
+              <p className="text-sm font-bold text-[#1F2933]">
+                Backend connection
+              </p>
+
+              <div className="mt-2 flex items-center gap-2 text-sm">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    healthStatus.data
+                      ? "bg-[#2F6F4E]"
+                      : healthStatus.loading
+                        ? "bg-[#B7791F]"
+                        : "bg-[#B42318]"
+                  }`}
+                ></span>
+
+                <span className="font-semibold text-[#1F2933]">
+                  {healthStatus.loading && "Checking backend..."}
+                  {healthStatus.data && healthStatus.data.message}
+                  {healthStatus.error && healthStatus.error}
+                </span>
+              </div>
+            </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button className="rounded-2xl bg-[#2F6F4E] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#24543B]">
@@ -57,7 +111,9 @@ function App() {
                 <p className="text-sm font-bold text-[#1F2933]">
                   Sample products
                 </p>
-                <p className="text-sm text-[#6B7280]">Tailwind setup preview</p>
+                <p className="text-sm text-[#6B7280]">
+                  Frontend and backend preview
+                </p>
               </div>
 
               <span className="rounded-full bg-[#FAF7F0] px-3 py-1 text-xs font-bold text-[#2F6F4E]">
