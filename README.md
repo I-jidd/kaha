@@ -30,12 +30,19 @@ The app is **mobile-first**, but not mobile-only.
 ### Backend
 
 - FastAPI
-- SQLAlchemy later
-- Alembic later
-- PostgreSQL later
+- SQLAlchemy
+- Alembic
+- PostgreSQL
 - Pydantic
 - JWT authentication later
 - Service-layer architecture
+
+### Database
+
+- PostgreSQL
+- Docker Compose
+- SQLAlchemy ORM
+- Alembic migrations
 
 ### Deployment Plan
 
@@ -80,7 +87,7 @@ These will be added only after the MVP is stable:
 ## Current Project Status
 
 ```txt
-Phase 1.7 - Project documentation updated
+Phase 2.6 - Database and migration documentation updated
 ```
 
 Completed foundation steps:
@@ -93,6 +100,13 @@ Phase 1.4 - Added Tailwind CSS styling
 Phase 1.5 - Connected frontend to backend health check
 Phase 1.6 - Added responsive app shell navigation
 Phase 1.7 - Updated README setup documentation
+
+Phase 2.1 - Added PostgreSQL Docker Compose setup
+Phase 2.2 - Added SQLAlchemy database connection
+Phase 2.3 - Set up Alembic migration environment
+Phase 2.4 - Added initial database migration baseline
+Phase 2.5 - Prepared SQLAlchemy model registry
+Phase 2.6 - Updated database and migration documentation
 ```
 
 ---
@@ -107,8 +121,19 @@ kaha/
         routes/
           health.py
       core/
+        __init__.py
         config.py
+      db/
+        __init__.py
+        database.py
+      models/
+        __init__.py
       main.py
+    alembic/
+      versions/
+      env.py
+      script.py.mako
+    alembic.ini
     requirements.txt
 
   frontend/
@@ -130,10 +155,14 @@ kaha/
       App.jsx
       index.css
       main.jsx
+    .env.example
     package.json
+    package-lock.json
     vite.config.js
 
+  .env.example
   .gitignore
+  docker-compose.yml
   README.md
 ```
 
@@ -155,6 +184,20 @@ Backend runs at:
 http://127.0.0.1:8000
 ```
 
+Root endpoint:
+
+```txt
+http://127.0.0.1:8000/
+```
+
+Expected response:
+
+```json
+{
+  "message": "Welcome to Kaha API"
+}
+```
+
 Health check endpoint:
 
 ```txt
@@ -167,6 +210,21 @@ Expected response:
 {
   "status": "ok",
   "message": "Kaha backend is running"
+}
+```
+
+Database health check endpoint:
+
+```txt
+http://127.0.0.1:8000/api/health/db
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "message": "Database connection successful"
 }
 ```
 
@@ -207,9 +265,15 @@ Placeholder pages for Sell, Products, Reports, and More
 
 ## Running the Full Foundation App
 
-Use two terminals.
+Use three terminals.
 
-### Terminal 1: Backend
+### Terminal 1: Database
+
+```powershell
+docker compose up -d db
+```
+
+### Terminal 2: Backend
 
 ```powershell
 Set-Location backend
@@ -217,7 +281,7 @@ Set-Location backend
 uvicorn app.main:app --reload
 ```
 
-### Terminal 2: Frontend
+### Terminal 3: Frontend
 
 ```powershell
 Set-Location frontend
@@ -232,9 +296,7 @@ http://localhost:5173
 
 ---
 
-## Current Routes
-
-Frontend routes:
+## Current Frontend Routes
 
 ```txt
 /          Dashboard
@@ -244,13 +306,251 @@ Frontend routes:
 /more      More
 ```
 
-Backend routes:
+---
+
+## Current Backend Routes
 
 ```txt
 GET /               Root API message
 GET /api/health     Backend health check
+GET /api/health/db  Database connection health check
 GET /docs           Swagger API documentation
 ```
+
+---
+
+## Database Setup
+
+Kaha uses PostgreSQL through Docker Compose.
+
+Start the database from the project root:
+
+```powershell
+docker compose up -d db
+```
+
+Check if the database container is running:
+
+```powershell
+docker ps
+```
+
+Expected container:
+
+```txt
+kaha_postgres
+```
+
+Expected port mapping:
+
+```txt
+0.0.0.0:5433->5432/tcp
+```
+
+The local PostgreSQL connection uses:
+
+```txt
+Database: kaha_db
+User: kaha_user
+Port: 5433
+```
+
+The development database URL is:
+
+```env
+DATABASE_URL=postgresql+psycopg2://kaha_user:kaha_password@localhost:5433/kaha_db
+```
+
+This value is documented in `.env.example`.
+
+Do not commit real `.env` files.
+
+---
+
+## Testing PostgreSQL Directly
+
+From the project root, run:
+
+```powershell
+docker exec -it kaha_postgres psql -U kaha_user -d kaha_db
+```
+
+Inside `psql`, check the current database:
+
+```sql
+SELECT current_database();
+```
+
+Expected:
+
+```txt
+kaha_db
+```
+
+Check the current user:
+
+```sql
+SELECT current_user;
+```
+
+Expected:
+
+```txt
+kaha_user
+```
+
+Show tables:
+
+```sql
+\dt
+```
+
+At this stage, the only expected table is usually:
+
+```txt
+alembic_version
+```
+
+Exit `psql`:
+
+```sql
+\q
+```
+
+---
+
+## Database Health Check
+
+After starting PostgreSQL, run the backend:
+
+```powershell
+Set-Location backend
+.\venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
+```
+
+Open:
+
+```txt
+http://127.0.0.1:8000/api/health/db
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "message": "Database connection successful"
+}
+```
+
+This confirms that FastAPI can connect to PostgreSQL through SQLAlchemy.
+
+---
+
+## Alembic Migration Workflow
+
+Alembic is used to manage database schema changes.
+
+Run Alembic commands from the backend folder:
+
+```powershell
+Set-Location backend
+.\venv\Scripts\Activate.ps1
+```
+
+Check the current migration:
+
+```powershell
+alembic current
+```
+
+Check migration history:
+
+```powershell
+alembic history
+```
+
+Apply all migrations:
+
+```powershell
+alembic upgrade head
+```
+
+Create a normal empty migration:
+
+```powershell
+alembic revision -m "migration message"
+```
+
+Create an autogenerated migration after adding a SQLAlchemy model:
+
+```powershell
+alembic revision --autogenerate -m "create users table"
+```
+
+Important migration flow:
+
+```txt
+Create or update SQLAlchemy model
+↓
+Import model in app/models/__init__.py
+↓
+Run alembic revision --autogenerate
+↓
+Review generated migration file
+↓
+Run alembic upgrade head
+↓
+Test the database
+↓
+Commit the model and migration together
+```
+
+Do not manually create tables in PostgreSQL unless debugging.
+
+---
+
+## Current Database Foundation
+
+The backend currently has:
+
+```txt
+backend/app/db/database.py
+backend/app/models/__init__.py
+backend/alembic/
+backend/alembic.ini
+```
+
+Current database features:
+
+```txt
+PostgreSQL Docker container
+SQLAlchemy engine
+SQLAlchemy session factory
+get_db dependency
+Base model class
+Alembic migration environment
+Initial baseline migration
+Model registry for future autogeneration
+Database health check endpoint
+```
+
+No business tables exist yet.
+
+Not created yet:
+
+```txt
+users
+stores
+products
+sales
+sale_items
+restocks
+stock_movements
+```
+
+The first real table will be created in Phase 3 when authentication begins.
 
 ---
 
@@ -303,6 +603,9 @@ Important rules:
 - Keep backend and frontend separated.
 - Keep route files thin.
 - Put business logic in service files later.
+- Use Alembic migrations for database schema changes.
+- Do not manually create app tables in PostgreSQL.
+- Do not add future features before the MVP foundation is stable.
 
 ---
 
@@ -331,6 +634,12 @@ feat: add Tailwind CSS frontend styling
 feat: connect frontend to backend health check
 feat: add responsive app shell navigation
 docs: update project setup instructions
+chore: add PostgreSQL Docker Compose setup
+feat: add backend database connection
+chore: setup Alembic migrations
+chore: add initial database migration baseline
+chore: prepare SQLAlchemy model registry
+docs: update database setup instructions
 ```
 
 ---
@@ -343,6 +652,7 @@ Safe files:
 
 ```txt
 .env.example
+frontend/.env.example
 ```
 
 Unsafe files:
@@ -359,10 +669,10 @@ Frontend environment example:
 VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-Future backend environment variables:
+Backend environment example:
 
 ```env
-DATABASE_URL=
+DATABASE_URL=postgresql+psycopg2://kaha_user:kaha_password@localhost:5433/kaha_db
 JWT_SECRET_KEY=
 JWT_ALGORITHM=
 ACCESS_TOKEN_EXPIRE_MINUTES=
@@ -379,6 +689,37 @@ EMAIL_PORT=
 EMAIL_USERNAME=
 EMAIL_PASSWORD=
 EMAIL_USE_TLS=
+```
+
+Never commit real email credentials.
+
+---
+
+## Authentication Plan
+
+Authentication will start in Phase 3.
+
+Planned basic authentication steps:
+
+```txt
+Phase 3.1 - Add User model
+Phase 3.2 - Add User schemas
+Phase 3.3 - Add password hashing utilities
+Phase 3.4 - Add register endpoint
+Phase 3.5 - Add login endpoint and JWT generation
+Phase 3.6 - Add current user dependency and /api/auth/me
+Phase 3.7 - Add email verification
+```
+
+Authentication features planned for the MVP:
+
+```txt
+Register
+Login
+JWT token authentication
+Protected backend endpoints
+Protected frontend routes
+Current user profile endpoint
 ```
 
 ---
@@ -421,6 +762,51 @@ User becomes verified
 User can access protected business features
 ```
 
+Future email verification tables:
+
+```txt
+users
+- id
+- email
+- hashed_password
+- is_active
+- is_verified
+- created_at
+- updated_at
+
+email_verification_tokens
+- id
+- user_id
+- token
+- expires_at
+- used_at
+- created_at
+```
+
+Future email verification endpoints:
+
+```txt
+POST /api/auth/verify-email
+POST /api/auth/resend-verification
+```
+
+Future email verification pages:
+
+```txt
+CheckEmailPage.jsx
+VerifyEmailPage.jsx
+```
+
+Important email verification rules:
+
+- New users should be created with `is_verified = false`.
+- Verification tokens must expire.
+- Used tokens must not be reusable.
+- Important app features should be blocked until the user is verified.
+- Do not expose backend secrets to the frontend.
+- Do not commit email provider credentials.
+- Start simple with console email logging before using a real provider.
+
 ---
 
 ## MVP First, AI Later
@@ -437,6 +823,56 @@ Future AI/ML features may include:
 - Savings recommendations
 
 These will only be added after the core MVP is stable.
+
+---
+
+## Future Savings Goals / Alkansya
+
+This will be added after the core sales, dashboard, and reports features are stable.
+
+Possible features:
+
+- Create savings goal
+- Edit savings goal
+- Archive completed goal
+- Add manual savings contribution
+- Allocate part of daily profit
+- View savings progress
+- Show savings history
+
+Important rule:
+
+```txt
+The system should not automatically deduct or allocate savings without user confirmation.
+```
+
+---
+
+## Future Receipt Scanner
+
+This will be added after manual restocking is stable.
+
+Possible flow:
+
+```txt
+User captures receipt image
+↓
+System extracts possible restock items
+↓
+User reviews and corrects extracted items
+↓
+User confirms restock draft
+↓
+System updates inventory
+↓
+System logs stock movements
+```
+
+Important rule:
+
+```txt
+Never update inventory automatically from OCR output without user confirmation.
+```
 
 ---
 
