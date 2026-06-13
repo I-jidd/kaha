@@ -7,7 +7,7 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 from app.schemas.auth import TokenResponse, LoginRequest
 from app.core.security import create_access_token
-from app.dependecies.auth import get_current_user
+from app.dependencies.auth import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 

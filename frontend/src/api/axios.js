@@ -10,4 +10,26 @@ const api = axios.create({
   },
 });
 
+//Attach token to every request if it exists
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("kaha_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+//If token is expired or invalid, clear it and redirect to login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status == 401) {
+      localStorage.removeItem("kaha_token");
+      window.location.href = "/login";
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 export default api;
